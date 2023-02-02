@@ -1,4 +1,3 @@
-from typing import Set
 from models.models import PriceHistory
 
 
@@ -31,28 +30,6 @@ class MarketAnalyzer:
         self.correlation_threshold = threshold
 
   #--------------------------------------------------------------------------------- REGULAR METHODS -------------------------------------------------------------------------------------------
-
-    # Takes in a index and returns a boolean whether there is an opportunity
-    # for index arbitrage to be performed on the index and its subsequent stocks.
-    def index_arbitrage_present(self,index:str='',market:set = set()) -> bool:
-        pass
-
-    # Takes in a indices set and returns a dictionary with the key as the index
-    # and the value as a boolean indicating if there is a chance for index arbitrage.
-    def index_arbitrage_present(self,indices:set = set(),market:set = set()) -> dict:
-        pass
-
-    # Takes in a ticker and returns a dictionary with the key as the ticker
-    # and the value as a boolean indicating if there is a chance for arbitrage
-    # on a certain market.
-    def is_arbitrage_present(self,ticker = '', market:set = set()) -> dict:
-        pass
-    
-    # Takes in a tickers set and returns a dictionary with the key as the ticker
-    # and the value as a boolean indicating if there is a chance for arbitrage
-    # on a certain market.
-    def is_arbitrage_present(self,ticker:Set[str],market:Set[str]) -> dict:
-        pass
 
     # Takes in a stock and window and returns the moving average based on
     # the window.
