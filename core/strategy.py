@@ -1,49 +1,92 @@
-from forecaster import Forecaster
 from models.models import Portfolio,PriceHistory
-from typing import Set
-from concurrent.futures import ThreadPoolExecutor
+from enums.enums import TradeType,MovingAverage
+from typing import Set,List,Tuple
+from concurrent.futures import ThreadPoolExecutor, Future
 from math import floor
 
 class Strategy:
-    
+    """
+    The Strategy Class contains all the strategies you can use to predict to buy, sold, or hold a stock.
+    """
     def __init__(self) -> None:
         pass
 
     def execute_arbitrage_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
         pass
     
-    def execute_bollinger_band_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
-        pass
-
-    def execute_mean_reversion_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory],type:str,window:float):
+    def execute_bollinger_band_strategy(self,portfolio: Portfolio, potential_stocks: List[PriceHistory],type: MovingAverage, window: float, std: int) -> List[Tuple[PriceHistory,TradeType]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-
+        futures: List[Future[TradeType]] = []
         for ticker in potential_stocks:
-            executor.submit(self.__mean_reversion_task(ticker,portfolio,type,window))
+            futures.append(executor.submit(self.__bollinger_band_task(ticker,portfolio,type,window, std)))
         executor.shutdown(wait=True)
+
+        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+
+        for i in range(0,len(futures)):
+            trading_results.append((potential_stocks[i],futures[i].result()))
+
+        return trading_results 
+
+    def execute_mean_reversion_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory],type: MovingAverage,window:float) -> List[Tuple[PriceHistory,TradeType]]:
+        numOfStocks = len(potential_stocks)
+        executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
+        futures: List[Future[TradeType]] = []
+        for ticker in potential_stocks:
+            futures.append(executor.submit(self.__mean_reversion_task(ticker,portfolio,type,window)))
+        executor.shutdown(wait=True)
+
+        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+
+        for i in range(0,len(futures)):
+            trading_results.append((potential_stocks[i],futures[i].result()))
+
+        return trading_results 
     
-    # WORK ON THIS FIRST
-    def execute_moving_average_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory], type:str,window:float):
+    def execute_moving_average_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory], type: MovingAverage,short_term_window:float, long_term_window:float) -> List[Tuple[PriceHistory,TradeType]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-
+        futures: List[Future[TradeType]] = []
         for ticker in potential_stocks:
-            executor.submit(self.__moving_average_task(ticker,portfolio,type,window))
+            futures.append(executor.submit(self.__moving_average_task(ticker,portfolio,type,short_term_window,long_term_window)))
         executor.shutdown(wait=True)
 
-       
-    def execute_pairs_trading_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
-        pass
+        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+
+        for i in range(0,len(futures)):
+            trading_results.append((potential_stocks[i],futures[i].result()))
+
+        return trading_results    
+ 
+    def execute_pairs_trading_strategy(self,portfolio:Portfolio, stock_pairs_list: List[Tuple[PriceHistory,PriceHistory]]) -> List[Tuple[Tuple[PriceHistory,PriceHistory],TradeType]]:
+        numOfStocks = len(stock_pairs_list)
+        executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
+        futures: List[Future[TradeType]] = []
+        for pair in stock_pairs_list:
+            futures.append(executor.submit(self.__pairs_trading_task(pair)))
+        executor.shutdown(wait=True)
+
+        trading_results: List[Tuple[Tuple[PriceHistory,PriceHistory],TradeType]] = []
+
+        for i in range(0,len(futures)):
+            trading_results.append((stock_pairs_list[i],futures[i].result()))
+
+        return trading_results    
 
     def execute_scalping_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
         pass
 
-    def __moving_average_task(self,ticker:PriceHistory,portfolio:Portfolio,type:str, window:float):
+    def __pairs_trading_task(self, stock_pair: Tuple[PriceHistory,PriceHistory]) -> TradeType:
         pass
 
+    def __bollinger_band_task(self,ticker: PriceHistory,type: MovingAverage,window: float, std: int) -> TradeType:
+        pass
 
-    def __mean_reversion_task(self,ticker:PriceHistory,portfolio:Portfolio,type:str, window:float):
+    def __moving_average_task(self,ticker: PriceHistory,type: MovingAverage, short_term_window: float, long_term_window: float) -> TradeType:
+        pass
+
+    def __mean_reversion_task(self,ticker: PriceHistory,portfolio: Portfolio,type: MovingAverage, window: float) -> TradeType:
         import pandas as pd
         # 1. GET PORTFOLIO INFORMATION
         # 2. CALCULATE MOVING AVERAGE OF EACH POTENTIAL STOCK

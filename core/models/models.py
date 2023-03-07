@@ -1,14 +1,30 @@
+from typing import List
 
+class Ticker:
+    """
+    A class that mimics a ticker and the values that come with it
+    """
+    open:float
+    close:float
+    low:float
+    high:float
+    volume:float
+    date:int
 
-# Historical Price data for a given stock
 class PriceHistory:
-    # The stock symbol assigned to this list of data
+    """
+    Historical Price data for a given stock
+    """
     ticker:str
-    # The historical price data on the stock returned
-    # from the api. Includes the open,close,high,low,
-    # datetime, and volume trade at that specific moment
-    info:list
-    
+    """
+    The stock symbol assigned to this list of data
+    """
+    info:List[Ticker]
+    """
+    The historical price data on the stock returned
+    from the api. Includes the open,close,high,low,
+    datetime, and volume trade at that specific moment
+    """
     def __init__(self,ticker:str,info:list):
         self.ticker = ticker
         self.info = info
@@ -19,10 +35,10 @@ class PriceHistory:
     def get_info(self) -> list:
         return self.info    
 
-
-# Portfolio class that will hold info regarding the traders
-# current account's funds and holding
 class Portfolio:
+    """
+    Portfolio class that will hold info regarding the traders current account's funds and holding
+    """
     current_available_funds:float
     total_funds:float
     holdings:dict
