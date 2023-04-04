@@ -1,4 +1,4 @@
-from models.models import *
+from core.models.models import *
 from typing import Set
 
 
