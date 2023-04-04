@@ -1,6 +1,7 @@
 from models.models import Portfolio,PriceHistory
-from enums.enums import TradeType,MovingAverage
+from enums.enums import TradeSignal,MovingAverageType
 from typing import Set,List,Tuple
+import pandas
 from concurrent.futures import ThreadPoolExecutor, Future
 from math import floor
 
@@ -14,60 +15,60 @@ class Strategy:
     def execute_arbitrage_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
         pass
     
-    def execute_bollinger_band_strategy(self,portfolio: Portfolio, potential_stocks: List[PriceHistory],type: MovingAverage, window: float, std: int) -> List[Tuple[PriceHistory,TradeType]]:
+    def execute_bollinger_band_strategy(self,portfolio: Portfolio, potential_stocks: List[PriceHistory],type: MovingAverageType, window: float, std: int) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-        futures: List[Future[TradeType]] = []
+        futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
             futures.append(executor.submit(self.__bollinger_band_task(ticker,portfolio,type,window, std)))
         executor.shutdown(wait=True)
 
-        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+        trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
 
         for i in range(0,len(futures)):
             trading_results.append((potential_stocks[i],futures[i].result()))
 
         return trading_results 
 
-    def execute_mean_reversion_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory],type: MovingAverage,window:float) -> List[Tuple[PriceHistory,TradeType]]:
+    def execute_mean_reversion_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory],type: MovingAverageType,window:float) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-        futures: List[Future[TradeType]] = []
+        futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
             futures.append(executor.submit(self.__mean_reversion_task(ticker,portfolio,type,window)))
         executor.shutdown(wait=True)
 
-        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+        trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
 
         for i in range(0,len(futures)):
             trading_results.append((potential_stocks[i],futures[i].result()))
 
         return trading_results 
     
-    def execute_moving_average_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory], type: MovingAverage,short_term_window:float, long_term_window:float) -> List[Tuple[PriceHistory,TradeType]]:
+    def execute_moving_average_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory], type: MovingAverageType,window: int) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-        futures: List[Future[TradeType]] = []
+        futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
-            futures.append(executor.submit(self.__moving_average_task(ticker,portfolio,type,short_term_window,long_term_window)))
+            futures.append(executor.submit(self.__moving_average_task(ticker,portfolio,type,window)))
         executor.shutdown(wait=True)
 
-        trading_results: List[Tuple[PriceHistory,TradeType]] = []
+        trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
 
         for i in range(0,len(futures)):
             trading_results.append((potential_stocks[i],futures[i].result()))
 
         return trading_results    
  
-    def execute_pairs_trading_strategy(self,portfolio:Portfolio, stock_pairs_list: List[Tuple[PriceHistory,PriceHistory]]) -> List[Tuple[Tuple[PriceHistory,PriceHistory],TradeType]]:
+    def execute_pairs_trading_strategy(self,portfolio:Portfolio, stock_pairs_list: List[Tuple[PriceHistory,PriceHistory]]) -> List[Tuple[Tuple[PriceHistory,PriceHistory],TradeSignal]]:
         numOfStocks = len(stock_pairs_list)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
-        futures: List[Future[TradeType]] = []
+        futures: List[Future[TradeSignal]] = []
         for pair in stock_pairs_list:
             futures.append(executor.submit(self.__pairs_trading_task(pair)))
         executor.shutdown(wait=True)
 
-        trading_results: List[Tuple[Tuple[PriceHistory,PriceHistory],TradeType]] = []
+        trading_results: List[Tuple[Tuple[PriceHistory,PriceHistory],TradeSignal]] = []
 
         for i in range(0,len(futures)):
             trading_results.append((stock_pairs_list[i],futures[i].result()))
@@ -77,17 +78,74 @@ class Strategy:
     def execute_scalping_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
         pass
 
-    def __pairs_trading_task(self, stock_pair: Tuple[PriceHistory,PriceHistory]) -> TradeType:
+    def __pairs_trading_task(self, stock_pair: Tuple[PriceHistory,PriceHistory]) -> TradeSignal:
         pass
 
-    def __bollinger_band_task(self,ticker: PriceHistory,type: MovingAverage,window: float, std: int) -> TradeType:
+    def __bollinger_band_task(self,ticker: PriceHistory,type: MovingAverageType,window: float, std: int) -> TradeSignal:
         pass
 
-    def __moving_average_task(self,ticker: PriceHistory,type: MovingAverage, short_term_window: float, long_term_window: float) -> TradeType:
-        pass
+    def __moving_average_task(self,ticker: PriceHistory,type: MovingAverageType, window: int) -> TradeSignal:
+        # Set up variables
+        signal:TradeSignal = TradeSignal.HOLD 
+        candles_df: pandas.DataFrame = pandas.DataFrame(ticker.get_info())
+        keys = {
+            "exponential":f'{window}-day ema',
+            "simple":f'{window}-day ma',
+            "close": "close",
+            'std': 'stardard-deviation',
+            'avg-std': 'average standard-deviation'
+        }
 
-    def __mean_reversion_task(self,ticker: PriceHistory,portfolio: Portfolio,type: MovingAverage, window: float) -> TradeType:
-        import pandas as pd
+        # Calculate averages
+        if type == MovingAverageType.EXPONENTIAL:
+            candles_df[keys['exponential']] = candles_df[keys['close']].rolling(window=window).mean()
+        else:
+            candles_df[keys['simple']] = candles_df[keys['close']].ewm(span=window,adjust=False).mean()
+        
+        # Calculate standard deviation and the average standard deviation over the time series
+        candles_df[keys['std']] = candles_df[keys['close']].sub(candles_df[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']]).abs().rolling(window=window).std()
+        candles_df[keys['avg-std']] = candles_df[keys['std']].rolling(window=window).mean()
+
+        for _,row in candles_df.iterrows():
+            close_price = row[keys['close']]
+            average_price = row[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']]
+            std = row[keys['std']]
+            avg_std = row[keys['avg-std']]
+
+            if average_price != 0:
+                if close_price > average_price:
+                    if std != 0 and avg_std != 0:
+                        # Figure out the percentage window you want the standard deviation to be
+                        # in order to consider it "stable" to long the trade
+                        if std <= avg_std:
+                            signal = TradeSignal.LONG
+                        else:
+                            signal = TradeSignal.HOLD
+                    else:
+                        # We should always have a standard deviation but we may not have a average for
+                        # That time stamp, therefore we can print an error if there is a missing std
+                        # or missing average std
+                        print("[ERROR]: There was a missing standard deviation or average standard deviation")   
+            
+                elif close_price < average_price:
+                    if std != 0 and avg_std != 0:
+                        # Figure out the percentage window you want the standard deviation to be
+                        # in order to consider it "stable" to long the trade
+                        if std >= avg_std:
+                            signal = TradeSignal.SHORT
+                        else:
+                            signal = TradeSignal.HOLD
+                    else:
+                        # We should always have a standard deviation but we may not have a average for
+                        # That time stamp, therefore we can print an error if there is a missing std
+                        # or missing average std
+                        print("[ERROR]: There was a missing standard deviation or average standard deviation")   
+
+                else:
+                    signal = TradeSignal.HOLD
+        return signal
+
+    def __mean_reversion_task(self,ticker: PriceHistory,portfolio: Portfolio,type: MovingAverageType, window: float) -> TradeSignal:
         # 1. GET PORTFOLIO INFORMATION
         # 2. CALCULATE MOVING AVERAGE OF EACH POTENTIAL STOCK
         # 3. PERFORM MA STRATEGY TO SEE IF A BUY OR SELL IS BEING SIGNALED
@@ -114,8 +172,8 @@ class Strategy:
             
             else:
                 print(f"TICKER:{ticker} is {port_perc}% of the portfolio")
-                if(type == "ema"):
-                    stock_df = pd.DataFrame(ticker.get_info())
+                if(type == MovingAverageType.EXPONENTIAL):
+                    stock_df = pandas.DataFrame(ticker.get_info())
                     stock_df[f'{window}-day ewma'] = stock_df["close"].ewm(span=window,adjust=False).mean()
 
                     for _,row in stock_df.iterrows():
@@ -135,7 +193,7 @@ class Strategy:
             
         else:
             print(f'TICKER:{ticker} is {0}% of your portfolio. Calculating percentages....')
-            if(type == "ema"):
+            if(type == MovingAverageType.EXPONENTIAL):
 
                 
                 stock_df = pd.DataFrame(ticker.get_info())

@@ -4,36 +4,36 @@ class Ticker:
     """
     A class that mimics a ticker and the values that come with it
     """
-    open:float
-    close:float
-    low:float
-    high:float
-    volume:float
-    date:int
+    open: float
+    close: float
+    low: float
+    high: float
+    volume: float
+    date: int
 
 class PriceHistory:
     """
     Historical Price data for a given stock
     """
-    ticker:str
+    ticker: str
     """
     The stock symbol assigned to this list of data
     """
-    info:List[Ticker]
+    candles: List[Ticker]
     """
     The historical price data on the stock returned
     from the api. Includes the open,close,high,low,
     datetime, and volume trade at that specific moment
     """
-    def __init__(self,ticker:str,info:list):
+    def __init__(self,ticker: str,info: List[Ticker]):
         self.ticker = ticker
-        self.info = info
+        self.candles = info
 
     def get_ticker(self) -> str:
         return self.ticker
 
-    def get_info(self) -> list:
-        return self.info    
+    def get_info(self) -> List[Ticker]:
+        return self.candles    
 
 class Portfolio:
     """
