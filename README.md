@@ -8,7 +8,7 @@ This project is currently on hold. The owner of the project (Kofi Boateng) is cu
 
 ## Other versions
 
-- [Clairevoyance C++](https://github.com/Kofi-D-Boateng/clairevoyance-c)
+- [Clairevoyance C++](https://github.com/Kofi-D-Boateng/Clairvoyance-CPP)
 
 ## Auxiliary Applications
 
