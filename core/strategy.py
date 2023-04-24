@@ -1,26 +1,47 @@
-from models.models import Portfolio,PriceHistory
-from enums.enums import TradeSignal,MovingAverageType
-from typing import Set,List,Tuple
+from models.models import Portfolio,PriceHistory,Candle
+from enums.enums import TradeSignal,MovingAverageType,IntervalType
+from typing import Set,List,Tuple,Any
 import pandas
 from concurrent.futures import ThreadPoolExecutor, Future
 from math import floor
+
+class TradeRecord:
+    """
+    The TradeRecord class is used to keep track of decisions made during the 
+    execution of the strategy. We will use this class wihtin the Strategy
+    class to keep a record for our back tester, where we will print out
+    the record to allow for more decisions to be made.
+    """
+    choice: TradeSignal
+    price: float
+    datetime: float
+    def __init__(self,choice: TradeSignal,price: float,date: float) -> None:
+        self.choice = choice
+        self.price = price
+        self.datetime = date
 
 class Strategy:
     """
     The Strategy Class contains all the strategies you can use to predict to buy, sold, or hold a stock.
     """
+    record_list: List[TradeRecord]
+    
     def __init__(self) -> None:
-        pass
+        self.record_list = list()
+    ################################################################# HELPER FUNCTIONS ##################################################################################################
 
-    def execute_arbitrage_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
+
+    ################################################################# PUBLIC FUNCTIONS ##################################################################################################
+
+    def execute_arbitrage_strategy(self,potential_stocks:Set[PriceHistory]):
         pass
     
-    def execute_bollinger_band_strategy(self,portfolio: Portfolio, potential_stocks: List[PriceHistory],type: MovingAverageType, window: float, std: int) -> List[Tuple[PriceHistory,TradeSignal]]:
+    def execute_bollinger_band_strategy(self,potential_stocks: List[PriceHistory],type: MovingAverageType, window: float, std: int) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
         futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
-            futures.append(executor.submit(self.__bollinger_band_task(ticker,portfolio,type,window, std)))
+            futures.append(executor.submit(self.__bollinger_band_task(ticker,type,window, std)))
         executor.shutdown(wait=True)
 
         trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
@@ -30,12 +51,12 @@ class Strategy:
 
         return trading_results 
 
-    def execute_mean_reversion_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory],type: MovingAverageType,window:float) -> List[Tuple[PriceHistory,TradeSignal]]:
+    def execute_mean_reversion_strategy(self,potential_stocks:List[PriceHistory],type: MovingAverageType,window:float) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
         futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
-            futures.append(executor.submit(self.__mean_reversion_task(ticker,portfolio,type,window)))
+            futures.append(executor.submit(self.__mean_reversion_task(ticker,type,window)))
         executor.shutdown(wait=True)
 
         trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
@@ -45,12 +66,12 @@ class Strategy:
 
         return trading_results 
     
-    def execute_moving_average_strategy(self,portfolio:Portfolio, potential_stocks:List[PriceHistory], type: MovingAverageType,window: int) -> List[Tuple[PriceHistory,TradeSignal]]:
+    def execute_moving_average_strategy(self,potential_stocks:List[PriceHistory], type: MovingAverageType,window: int) -> List[Tuple[PriceHistory,TradeSignal]]:
         numOfStocks = len(potential_stocks)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
         futures: List[Future[TradeSignal]] = []
         for ticker in potential_stocks:
-            futures.append(executor.submit(self.__moving_average_task(ticker,portfolio,type,window)))
+            futures.append(executor.submit(self.__moving_average_task(ticker,type,window)))
         executor.shutdown(wait=True)
 
         trading_results: List[Tuple[PriceHistory,TradeSignal]] = []
@@ -60,7 +81,7 @@ class Strategy:
 
         return trading_results    
  
-    def execute_pairs_trading_strategy(self,portfolio:Portfolio, stock_pairs_list: List[Tuple[PriceHistory,PriceHistory]]) -> List[Tuple[Tuple[PriceHistory,PriceHistory],TradeSignal]]:
+    def execute_pairs_trading_strategy(self,stock_pairs_list: List[Tuple[PriceHistory,PriceHistory]]) -> List[Tuple[Tuple[PriceHistory,PriceHistory],TradeSignal]]:
         numOfStocks = len(stock_pairs_list)
         executor:ThreadPoolExecutor = ThreadPoolExecutor(max_workers=numOfStocks)
         futures: List[Future[TradeSignal]] = []
@@ -75,7 +96,7 @@ class Strategy:
 
         return trading_results    
 
-    def execute_scalping_strategy(self,portfolio:Portfolio, potential_stocks:Set[PriceHistory]):
+    def execute_scalping_strategy(self,potential_stocks:Set[PriceHistory]):
         pass
 
     def __pairs_trading_task(self, stock_pair: Tuple[PriceHistory,PriceHistory]) -> TradeSignal:
@@ -86,60 +107,127 @@ class Strategy:
 
     def __moving_average_task(self,ticker: PriceHistory,type: MovingAverageType, window: int) -> TradeSignal:
         # Set up variables
-        signal:TradeSignal = TradeSignal.HOLD 
-        candles_df: pandas.DataFrame = pandas.DataFrame(ticker.get_info())
+        signal:TradeSignal = TradeSignal.HOLD
+        average_window = window 
+        resample = False
+        candles: List[Candle] = ticker.get_info()
+        data:List[dict[str, Any]] = []
         keys = {
             "exponential":f'{window}-day ema',
             "simple":f'{window}-day ma',
-            "close": "close",
             'std': 'stardard-deviation',
-            'avg-std': 'average standard-deviation'
+            'avg-std': 'average standard-deviation',
+            'cv': 'coefficient of variance'
         }
+        for candle in candles:
+            data.append({
+                'open': candle.open,
+                'close': candle.close,
+                'low': candle.low,
+                'high': candle.high,
+                'volume': candle.volume,
+                'date': candle.date
+            })
+        
+        candles_df: pandas.DataFrame = pandas.DataFrame(data)
 
         # Calculate averages
-        if type == MovingAverageType.EXPONENTIAL:
-            candles_df[keys['exponential']] = candles_df[keys['close']].rolling(window=window).mean()
+        """
+        During this phase, we need to check the stock data to correctly calulate our statistics.
+        From here, we can use a switch statement based on the case of the IntervalType of the stock.
+        This will dictate how many data points per window should be used to calulate our stats. We
+        also need to normalize.
+
+        For example, the rolling method lends itself better for data points marked in singles (n-days
+        n-weeks). We could possibly have a chart that is a 3 month chart that is split on 15 minutes
+        intervals. This is when we would normalize our interval datas to be able to pick up the correct
+        points:
+
+        For a 20 day rolling mean on a 3 month 15-min chart:
+            1-Trading Day |     32.5hrs     | 60 Trading Days  
+            --------------|-----------------|----------------   
+                6.5hrs    | 5 Trading Days  |  390 hours
+        
+        Without accounting for holidays we have 3months =~ 390hrs of non-crypto/futures/forex trading (equity).
+        each ticker = 15minutes, therefore 30 minutes = a two ticker normalization.
+        This means we need 13 30min segments X 2 tickers = 26 tickers for each trading period.
+        (We will normalize to 30 minutes to make it easier to match trading periods when intervals >= 30min)
+        26*60 days = 1560 tickers/20 = 1200 (so our window would be 1200 when resampling or using rolling)
+        """
+
+        candles_df.set_index('date',inplace=True)
+
+        if ticker.get_interval_type().value == IntervalType.SECOND.value:
+            day_in_seconds = 1 * 24 * 60 * 60 # 86,4000sec/1day
+            day_in_seconds *= average_window # normalizing window in days to seconds in days
+            average_window = day_in_seconds/ticker.get_interval() # window represents number of tickers needed to be added to represent
+            pass
+        elif ticker.get_interval_type().value == IntervalType.MINUTE.value:
+            day_in_minutes = 1 * 24 * 60
+            day_in_minutes *= average_window
+            average_window /= ticker.get_interval()
+        elif ticker.get_interval_type().value == IntervalType.HOUR.value:
+            day_in_hours = 24
+            day_in_hours *= average_window
+            day_in_hours /= ticker.get_interval()
+        elif ticker.get_interval_type().value == IntervalType.DAY.value:
+            average_window /= ticker.get_interval()
+        elif ticker.get_interval_type().value == IntervalType.MONTH or ticker.get_interval_type().value == IntervalType.QUARTER.value or ticker.get_interval_type().value == IntervalType.YEAR.value:
+            resample = True
         else:
-            candles_df[keys['simple']] = candles_df[keys['close']].ewm(span=window,adjust=False).mean()
+            print("[ERROR]: Could not determine course of action against interval type....")
+            return
+
+        if type == MovingAverageType.EXPONENTIAL:
+            if resample:
+                candles_df = candles_df.resample(ticker.get_interval_type().name).last()
+
+            candles_df[keys['exponential']] = candles_df[keys['close']].rolling(window=average_window).mean()
+        else:
+            if resample:
+                candles_df = candles_df.resample(ticker.get_interval_type().name).last()
+
+            candles_df[keys['simple']] = candles_df['close'].ewm(span=average_window,adjust=False).mean()
         
         # Calculate standard deviation and the average standard deviation over the time series
-        candles_df[keys['std']] = candles_df[keys['close']].sub(candles_df[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']]).abs().rolling(window=window).std()
-        candles_df[keys['avg-std']] = candles_df[keys['std']].rolling(window=window).mean()
+        candles_df[keys['std']] = candles_df['close'].sub(candles_df[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']]).abs().rolling(window=average_window).std()
+        candles_df[keys['cv']] = (candles_df[keys['std']]/candles_df[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']])
 
         for _,row in candles_df.iterrows():
-            close_price = row[keys['close']]
+            close_price = row['close']
             average_price = row[keys['exponential'] if type == MovingAverageType.EXPONENTIAL else keys['simple']]
-            std = row[keys['std']]
-            avg_std = row[keys['avg-std']]
+            cv = row[keys['cv']]
 
             if average_price != 0:
+                """
+                Once we have a average to compare against, we will follow these next steps
+                1. Figure out which side of the average our closing prices are sitting on
+                2. Try to determine if we are approaching a potential reverse to the mean
+                3. Select our decision on which side to enter the trade: BUY or SELL
+                """
                 if close_price > average_price:
-                    if std != 0 and avg_std != 0:
-                        # Figure out the percentage window you want the standard deviation to be
-                        # in order to consider it "stable" to long the trade
-                        if std <= avg_std:
-                            signal = TradeSignal.LONG
-                        else:
-                            signal = TradeSignal.HOLD
+                    """
+                    We will take the coefficient and use conditional logic against thresholds
+                    analyzed time to trigger a BUY or SELL.
+                    """
+                    if cv > 0.1:
+                        signal = TradeSignal.BUY
+                        record: TradeRecord = TradeRecord(signal,close_price,row['date'])
+                        self.record_list.append(record)
                     else:
-                        # We should always have a standard deviation but we may not have a average for
-                        # That time stamp, therefore we can print an error if there is a missing std
-                        # or missing average std
-                        print("[ERROR]: There was a missing standard deviation or average standard deviation")   
+                        signal = TradeSignal.SELL
+                        record: TradeRecord = TradeRecord(signal,close_price,row['date'])
+                        self.record_list.append(record)   
             
                 elif close_price < average_price:
-                    if std != 0 and avg_std != 0:
-                        # Figure out the percentage window you want the standard deviation to be
-                        # in order to consider it "stable" to long the trade
-                        if std >= avg_std:
-                            signal = TradeSignal.SHORT
-                        else:
-                            signal = TradeSignal.HOLD
+                    if cv > 0.1:
+                        signal = TradeSignal.SELL
+                        record: TradeRecord = TradeRecord(signal,close_price,row['date'])
+                        self.record_list.append(record)
                     else:
-                        # We should always have a standard deviation but we may not have a average for
-                        # That time stamp, therefore we can print an error if there is a missing std
-                        # or missing average std
-                        print("[ERROR]: There was a missing standard deviation or average standard deviation")   
+                        signal = TradeSignal.BUY
+                        record: TradeRecord = TradeRecord(signal,close_price,row['date'])
+                        self.record_list.append(record)   
 
                 else:
                     signal = TradeSignal.HOLD
