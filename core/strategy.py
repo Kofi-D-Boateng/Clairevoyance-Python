@@ -1,7 +1,7 @@
 from models.history import PriceHistory, Candle
 from models.record import TradeRecord,RecordHolder
 from models.portfolio import Portfolio
-from enums.enums import TradeSignal, MovingAverageType, IntervalType,Side
+from enums.enums import TradeSignal, MovingAverageType, IntervalType, RewardType
 from typing import Set, List, Tuple, Any
 from concurrent.futures import ThreadPoolExecutor, Future
 from math import floor
@@ -145,13 +145,12 @@ class Strategy:
     def __pairs_trading_task(self, stock_pair: Tuple[PriceHistory, PriceHistory]) -> TradeSignal:
         pass
 
-    def __bollinger_band_task(self, portfolio: Portfolio,  ticker: PriceHistory, average_type: MovingAverageType,take_profit_amount_trigger: int, risk_amount: float, reward_amount: float, window: int = 20, std: int = 2, rsi_val: int = 14, rsi_upper_bound: float = 70.0, rsi_lower_bound: float = 30.0) -> Tuple[TradeSignal,int]:
+    def __bollinger_band_task(self, portfolio: Portfolio,  ticker: PriceHistory, average_type: MovingAverageType, triggers:dict, window: int = 20, std: int = 2, rsi_val: int = 14, rsi_upper_bound: float = 70.0, rsi_lower_bound: float = 30.0) -> Tuple[TradeSignal,int,float]:
         candles: List[Candle] = ticker.get_info()
         holdings = portfolio.get_holdings().get(ticker.get_ticker())
         signal: TradeSignal = TradeSignal.HOLD
         records: TradeRecord = TradeRecord(ticker=ticker.get_ticker())
         candles_df: pandas.DataFrame = pandas.DataFrame([{'open': candle.open,'close': candle.close,'low': candle.low, 'high': candle.high,'volume': candle.volume,'date': candle.date} for candle in candles])
-
         candles_df.reset_index(inplace=True)
 
         # Calculate standard deviation and the average standard deviation over the time series
@@ -179,10 +178,17 @@ class Strategy:
                         We will send a buy signal and the order will be handled by the bot.
                         """
                         signal = TradeSignal.BUY
+                        triggers.update('profit_trigger_amount',curr_price)
                 else:
-                    trigger: float = holdings.purchase_amount + (holdings.purchase_amount * (reward_amount/100.0))
-                    if curr_price >= trigger and take_profit_amount_trigger > 0:
+                    trigger_amount: float = holdings.purchase_amount
+                    if holdings.number_of_shares > 0 and triggers.get('current_count') >= triggers.get('take_profit_count'):
+                        if triggers.get('reward_type') == RewardType.DYNAMIC:
+                            trigger_amount: float = triggers.get('profit_trigger_amount') + (triggers.get('profit_trigger_amount') * (triggers.get('reward_amount')/100.0))
+                        else:
+                            trigger_amount: float = holdings.purchase_amount + (holdings.purchase_amount * (triggers.get('reward_amount')/100.0))
+                    if curr_price >= trigger_amount:
                         signal = TradeSignal.TAKE_PROFIT
+                        triggers.update('profit_trigger_amount',curr_price)
              
         self.record_holder.insert_record(records)
         return (signal, curr_date)

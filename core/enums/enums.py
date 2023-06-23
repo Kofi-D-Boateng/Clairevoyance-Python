@@ -2,6 +2,11 @@ from enum import Enum
 
 class MovingAverageStrategyType(Enum):
     CROSS = "CROSS"
+
+
+class RewardType(Enum):
+    NORMAL = "NORMAL"
+    DYNAMIC = "DYNAMIC"
     
 class TradeSignal(Enum):
     BUY = "BUY"
