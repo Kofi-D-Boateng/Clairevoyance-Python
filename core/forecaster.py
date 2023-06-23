@@ -1,4 +1,4 @@
-from core.models.models import *
+from models.history import PriceHistory
 from typing import Set
 
 

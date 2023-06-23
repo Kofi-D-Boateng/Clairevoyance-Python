@@ -70,48 +70,11 @@ class PriceHistory:
     def get_range(self) -> ChartRange:
         return self.range
     
-    def get_range_interval(self) -> float:
+    def get_range_interval(self) -> int:
         return self.range_interval
     
     def get_interval_type(self) -> IntervalType:
         return self.interval_type
     
-    def get_interval(self) -> float:
+    def get_interval(self) -> int:
         return self.interval
-
-class Portfolio:
-    """
-    Portfolio class that will hold info regarding the traders current account's funds and holding
-    """
-    current_available_funds:float
-    total_funds:float
-    holdings:dict
-    max_exposure_allowed:float
-    stop_loss:float
-    limit_order:float
-
-    def __init__(self,current_funds:float,total_funds:float,holdings:dict,max_exposure_allowed:float,stop_loss_percent:float,limit_order_percent):
-        self.current_available_funds = current_funds
-        self.total_funds = total_funds
-        self.holdings = holdings
-        self.max_exposure_allowed
-        self.stop_loss = 1 - stop_loss_percent
-        self.limit_order = 1 + limit_order_percent
-
-    def get_current_funds(self) -> float:
-        return self.current_available_funds
-
-    def get_total_funds(self) -> float:
-        return self.total_funds     
-
-    def get_holdings(self) -> dict:
-        return self.holdings       
-
-    def get_max_exposure_allowed(self) -> float:
-        return self.max_exposure_allowed      
-
-    def get_stop_loss(self)-> float:
-        return self.stop_loss
-
-    def get_limit_order(self) -> float:
-        return self.limit_order    
