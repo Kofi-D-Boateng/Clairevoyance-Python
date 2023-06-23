@@ -5,12 +5,17 @@ class MovingAverageStrategyType(Enum):
     
 class TradeSignal(Enum):
     BUY = "BUY"
-    STRONG_BUY = "STRONG BUY"
+    STRONG_BUY = "STRONG_BUY"
     SELL = "SELL"
-    STRONG_SELL = "STRONG SELL"
+    STRONG_SELL = "STRONG_SELL"
     HOLD = "HOLD"
     LONG = "LONG"
     SHORT = "SHORT"
+    TAKE_PROFIT = "TAKE_PROFIT"
+
+class Side(Enum):
+    SELL_SIDE = 0
+    BUY_SIDE = 1
 
 class MovingAverageType(Enum):
     SIMPLE = "SIMPLE"
