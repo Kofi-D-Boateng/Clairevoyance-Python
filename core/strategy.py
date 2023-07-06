@@ -1,7 +1,7 @@
 from models.history import PriceHistory, Candle
 from models.record import TradeRecord,RecordHolder
 from models.portfolio import Portfolio
-from enums.enums import TradeSignal, MovingAverageType, IntervalType, RewardType
+from enums.enums import TradeSignal, MovingAverageType, FrequencyType, RewardType
 from typing import Set, List, Tuple
 from concurrent.futures import ThreadPoolExecutor, Future
 import pandas
@@ -22,25 +22,25 @@ class Strategy:
 
     ################################################################# PUBLIC FUNCTIONS ##################################################################################################
 
-    def __generate_correct_window(self, interval_type: IntervalType, interval: int, average_window) -> int:
-        if interval_type.value == IntervalType.SECOND.value:
+    def __generate_correct_window(self, frequency_type: FrequencyType, interval: int, average_window) -> int:
+        if frequency_type.value == FrequencyType.SECOND.value:
             day_in_seconds = 1 * 24 * 60 * 60  # 86,4000sec/1day
             day_in_seconds *= average_window  # normalizing window in days to seconds in days
             average_window = day_in_seconds / interval()  # window represents number of tickers needed to be added to represent
             return average_window
-        elif interval_type.value == IntervalType.MINUTE.value:
+        elif frequency_type.value == frequency_type.MINUTE.value:
             day_in_minutes = 1 * 24 * 60
             day_in_minutes *= average_window
             average_window /= interval()
             return average_window
-        elif interval_type.value == IntervalType.HOUR.value:
+        elif frequency_type.value == FrequencyType.HOUR.value:
             day_in_hours = 24
             day_in_hours *= average_window
             day_in_hours /= interval()
-        elif interval_type.value == IntervalType.DAY.value:
+        elif frequency_type.value == FrequencyType.DAY.value:
             average_window /= interval()
             return average_window
-        elif interval_type.value == IntervalType.MONTH or interval_type.value == IntervalType.QUARTER.value or interval_type.value == IntervalType.YEAR.value:
+        elif frequency_type.value == FrequencyType.MONTH or frequency_type.value == FrequencyType.QUARTER.value or frequency_type.value == FrequencyType.YEAR.value:
             return 0
         else:
             print("[ERROR]: Could not determine course of action against interval type....")
@@ -62,15 +62,15 @@ class Strategy:
 
         data['rsi'] = rsi
 
-    def __generate_moving_average(self,type: MovingAverageType,window: int,df: pandas.DataFrame, interval_type: IntervalType) -> None:
+    def __generate_moving_average(self,type: MovingAverageType,window: int,df: pandas.DataFrame, frequency_type: FrequencyType) -> None:
         if type == MovingAverageType.EXPONENTIAL:
             if window == 0:
-                df.resample(interval_type.name).last()
+                df.resample(frequency_type.name).last()
 
             df[f'{window}'] = df['close'].rolling(window=window).mean()
         else:
             if window == 0:
-                df.resample(interval_type.name).last()
+                df.resample(frequency_type.name).last()
 
             df[f'{window}'] = df['close'].ewm(span=window, adjust=False).mean()
 
@@ -139,8 +139,8 @@ class Strategy:
         candles_df.reset_index(inplace=True)
 
         # Calculate standard deviation and the average standard deviation over the time series
-        average_window = self.__generate_correct_window(ticker.get_interval_type(),ticker.get_interval(),window)
-        self.__generate_moving_average(average_type,average_window,candles_df,ticker.get_interval_type())
+        average_window = self.__generate_correct_window(ticker.get_frequency_type(),ticker.get_frequency(),window)
+        self.__generate_moving_average(average_type,average_window,candles_df,ticker.get_frequency_type())
         self.__generate_rsi(candles_df,rsi_val)
         candles_df['std'] = candles_df['close'].sub(candles_df[f'{window}']).rolling(window=average_window).std()
         candles_df['upper-band'] = std * candles_df['std'] + candles_df[f'{window}']
@@ -188,11 +188,11 @@ class Strategy:
         candles_df.reset_index(inplace=True)
 
 
-        f_window = self.__generate_correct_window(ticker.get_interval_type(),ticker.get_interval(),fast_window)
-        s_window = self.__generate_correct_window(ticker.get_interval_type(),ticker.get_interval(),slow_window)
+        f_window = self.__generate_correct_window(ticker.get_frequency_type(),ticker.get_frequency(),fast_window)
+        s_window = self.__generate_correct_window(ticker.get_frequency_type(),ticker.get_frequency(),slow_window)
 
-        self.__generate_moving_average(average_type,f_window,candles_df,candles_df,ticker.get_interval_type())
-        self.__generate_moving_average(average_type,s_window,candles_df,candles_df,ticker.get_interval_type())
+        self.__generate_moving_average(average_type,f_window,candles_df,candles_df,ticker.get_frequency_type())
+        self.__generate_moving_average(average_type,s_window,candles_df,candles_df,ticker.get_frequency_type())
         self.__generate_rsi(candles_df,rsi_val)
 
 
