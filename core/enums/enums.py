@@ -34,10 +34,17 @@ class ChartRange(Enum):
 
 class IntervalType(Enum):
     SECOND = "S"
-    MINUTE = "M"
+    MINUTE = "MIN"
     HOUR = "H"
     DAY = "D"
     WEEK = "W"
     MONTH = "M"
     QUARTER = "Q"
     YEAR = "Y"
+
+class PeriodType(Enum):
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
+    YEAR = "year"
+    YTD = "ytd"
