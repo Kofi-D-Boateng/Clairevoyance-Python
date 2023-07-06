@@ -1,4 +1,5 @@
 from typing import List
+from datetime import datetime
 from enums.enums import *
 
 class Candle:
@@ -34,47 +35,58 @@ class PriceHistory:
     from the api. Includes the open,close,high,low,
     datetime, and volume trade at that specific moment
     """
-    range: ChartRange
+    period: int
     """
-    The range that the chart spans. The range should
+    The period that the chart spans. The range should
     be used only when the chart is within one of the
     specified ranges. If using a chart between
-    unique timestamps, passing a ChartRange is not
+    unique timestamps, passing a PeriodType is also not
     needed. 
     
-    Default set to NONE
+    Default set to DAY
     """
-    range_interval: int
+    period_type: PeriodType
+    
+    frequency_type: FrequencyType
+
+    frequency: int
+
+    start_date: int
     """
-    The interval for which the range of the chart spans.
-
-    For example, a 3 Month chart will have a range set
-    to ChartRange.MONTH and a range_interval of 3. This
-    is important to be able to correctly calculate 
-    statisical points for the stock.
+    The beginning date of the time series in epoch milliseonds
     """
-    interval_type: IntervalType
+    end_date: int
+    """
+    The ending date of the time series in epoch milliseonds
+    """
 
-    interval: int
-
-    def __init__(self,ticker: str,info: List[Candle], interval_type: IntervalType, interval: float  ,range_interval: float = 0, range: ChartRange = ChartRange.NONE):
+    def __init__(self,ticker: str,info: List[Candle], start_date: datetime = None, end_date: datetime = None, frequency_type: FrequencyType = FrequencyType.DAY, frequency: int = 0  , period: int = 0, period_type: PeriodType = PeriodType.DAY):
         self.ticker = ticker
+        self.frequency_type = frequency_type
+        self.interval = frequency
+        self.period = period
+        self.period_type = period_type
         self.candles = info
+        self.start_date = self.date_to_epoch(start_date) if start_date is not None else None
+        self.end_date = self.date_to_epoch(end_date) if start_date is not None else None
 
-    def get_ticker(self) -> str:
-        return self.ticker
+    @staticmethod
+    def date_to_epoch(date_string: datetime):
+        dt = datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S.%f")
+        return int((dt - datetime(1970, 1, 1)).total_seconds() * 1000)
 
-    def get_info(self) -> List[Candle]:
-        return self.candles    
+    def get_ticker(self) -> str: return self.ticker
+
+    def get_info(self) -> List[Candle]: return self.candles    
     
-    def get_range(self) -> ChartRange:
-        return self.range
+    def get_period(self) -> int: return self.period
     
-    def get_range_interval(self) -> int:
-        return self.range_interval
+    def get_period_type(self) -> PeriodType: return self.period_type
     
-    def get_interval_type(self) -> IntervalType:
-        return self.interval_type
+    def get_frequency(self) -> int: return self.frequency
     
-    def get_interval(self) -> int:
-        return self.interval
+    def get_frequency_type(self) -> FrequencyType: return self.frequency_type
+
+    def get_start_date(self) -> int: return self.start_date
+
+    def get_end_date(self) -> int: return self.end_date
